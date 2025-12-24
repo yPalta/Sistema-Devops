@@ -1,0 +1,33 @@
+---
+- name: Configuracion Automatica del Servidor B
+  hosts: servidor_b
+  become: yes
+  tasks:
+    - name: Asegurar que Docker este instalado
+      apt:
+        name: docker.io
+        state: present
+        update_cache: yes
+
+    - name: Iniciar o verificar Docker Swarm
+      shell: |
+        if [ "\inactive" != "active" ]; then
+          docker swarm init --advertise-addr 192.168.1.18
+        fi
+      ignore_errors: yes
+
+    - name: Eliminar servicio previo si existe
+      shell: docker service rm nestjs-app
+      ignore_errors: yes
+
+    - name: Desplegar App con 3 replicas (ypalta/user-management)
+      shell: |
+        docker service create --name nestjs-app \
+        --replicas 3 \
+        --publish 3000:3000 \
+        ypalta/user-management:latest
+      register: deploy_result
+
+    - name: Mostrar estado del despliegue
+      debug:
+        var: deploy_result.stdout
